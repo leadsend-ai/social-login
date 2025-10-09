@@ -17,6 +17,7 @@ export const GoogleSocialLogin = () => {
         const isCrm = urlParams.get("isCrm");
         redirectUrlWithToken.searchParams.append("credential", response.code);
         redirectUrlWithToken.searchParams.append("isCrm", isCrm ?? "false");
+        // commit
         window.location.href = redirectUrlWithToken.toString();
       }
     } else {
