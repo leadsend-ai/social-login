@@ -1,106 +1,81 @@
-import { useEffect, useCallback } from "react";
+import { GoogleLogin } from "@react-oauth/google";
+import { useCallback } from "react";
+
+// TypeScript interfaces for OAuth response
+interface GoogleOAuthResponse {
+  credential?: string;
+  clientId?: string;
+  select_by?: string;
+}
+
+interface BroadcastMessage {
+  type: "GOOGLE_OAUTH_SUCCESS" | "GOOGLE_OAUTH_ERROR";
+  payload: {
+    credential?: string;
+    error?: string;
+    timestamp: number;
+    source: "social-login-app";
+  };
+}
 
 export const GoogleSocialLogin = () => {
-  // Use a fallback client ID for development
-  const clientId =
-    process.env.REACT_APP_GOOGLE_CLIENT_ID || "your-google-client-id";
-
-  const handleCredentialResponse = useCallback((response: any) => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const redirectUrl = urlParams.get("redirect_url");
-    const action = urlParams.get("action");
-
-    if (redirectUrl) {
-      const redirectUrlWithToken = new URL(redirectUrl);
-
-      if (action === "addEmailAccount") {
-        const isCrm = urlParams.get("isCrm");
-        redirectUrlWithToken.searchParams.append("credential", response.code);
-        redirectUrlWithToken.searchParams.append("isCrm", isCrm ?? "false");
-        // commit
-        window.location.href = redirectUrlWithToken.toString();
-      }
-    } else {
-      console.log("Encoded JWT ID token:", response.code);
-      // No redirect URL provided, handle token locally
-    }
-  }, []);
-
-  const getAuthCode = useCallback(() => {
-    if (!(window as any)?.google) return;
-
-    (window as any).google.accounts.oauth2
-      .initCodeClient({
-        client_id: clientId,
-        scope: "https://mail.google.com email profile",
-        ux_mode: "popup",
-        access_type: "offline",
-        callback: (response: any) => {
-          // Send this authCode to your backend to exchange for tokens
-          console.log("token", response.code);
-          handleCredentialResponse(response);
-          // handleToken(response.code);
+  // Function to send OAuth response via PostMessage (cross-domain)
+  const sendOAuthResponse = useCallback(
+    (response: GoogleOAuthResponse, isError = false) => {
+      const message: BroadcastMessage = {
+        type: isError ? "GOOGLE_OAUTH_ERROR" : "GOOGLE_OAUTH_SUCCESS",
+        payload: {
+          credential: response.credential,
+          error: isError ? "OAuth authentication failed" : undefined,
+          timestamp: Date.now(),
+          source: "social-login-app",
         },
-      })
-      .requestCode();
-  }, [clientId]);
-  // const getAuthCode = useCallback(() => {
-  //   // Use direct redirect approach instead of popup to avoid blocking
-  //   const redirectUri = `${window.location.origin}/oauth/google/callback`;
-  //   const scope = encodeURIComponent("https://mail.google.com email profile");
+      };
 
-  //   const authUrl =
-  //     `https://accounts.google.com/o/oauth2/v2/auth?` +
-  //     `client_id=${clientId}&` +
-  //     `redirect_uri=${encodeURIComponent("http:localhost:5500")}&` +
-  //     `scope=${scope}&` +
-  //     `response_type=code&` +
-  //     `access_type=offline&` +
-  //     `prompt=consent`;
+      // console.log("📨 [PostMessage] Message to send:", message);
 
-  //   // Redirect to Google OAuth
-  //   window.location.href = authUrl;
-  // }, [clientId]);
+      // Get target origin from URL params or use default
+      const urlParams = new URLSearchParams(window.location.search);
+      const targetOrigin =
+        urlParams.get("target_origin") || "http://localhost:4200";
 
-  useEffect(() => {
-    // Load the Google API library
-    const loadGsiScript = () => {
-      const script = document.createElement("script");
-      script.src = "https://accounts.google.com/gsi/client";
-      script.async = true;
-      script.defer = true;
-      script.onload = initializeGoogleClient;
-      document.body.appendChild(script);
-    };
+      // console.log("🎯 [PostMessage] Target origin:", targetOrigin);
 
-    const initializeGoogleClient = () => {
-      if (!(window as any).google) return;
+      try {
+        if (window.parent && window.parent !== window) {
+          window.parent.postMessage(message, targetOrigin);
+          console.log("✅ [PostMessage] Message sent to parent window");
+        }
+      } catch (error) {
+        console.warn("⚠️ [PostMessage] Failed to send to parent:", error);
+      }
+    },
+    []
+  );
 
-      console.log("initialized");
-      (window as any).google.accounts.id.initialize({
-        client_id: clientId,
-        callback: handleCredentialResponse,
-      });
-
-      // Automatically initiate OAuth flow once Google client is initialized
-      getAuthCode();
-    };
-
-    loadGsiScript();
-  }, [clientId, handleCredentialResponse, getAuthCode]);
-
-  // No UI - just return null or a minimal loading indicator
-  return null;
   return (
     <div>
-      <button
-        onClick={() => {
-          console.log(clientId);
-          getAuthCode();
+      <GoogleLogin
+        size="large"
+        width="360px"
+        type="standard"
+        theme="outline"
+        logo_alignment="left"
+        shape="rectangular"
+        onSuccess={async (resp: GoogleOAuthResponse) => {
+          // Send response via BroadcastChannel to stamina
+          sendOAuthResponse(resp);
+
+          return;
         }}
-      >
-        Login with Google
-      </button>
+        onError={() => {
+          console.log("Something went wrong, try again");
+
+          // Send error via BroadcastChannel
+          sendOAuthResponse({}, true);
+        }}
+        ux_mode="popup"
+      />
     </div>
   );
 };

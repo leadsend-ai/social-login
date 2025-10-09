@@ -2,10 +2,10 @@ import React from "react";
 import { Routes, Route } from "react-router-dom";
 import NotFound from "./components/NotFound";
 import GoogleSocialLogin from "./components/GoogleSocialLogin";
-import GoogleOAuthCallback from "./components/GoogleOAuthCallback";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 
 import "./App.css";
+import { GoogleSocialConnect } from "./components/GoogleSocialConnect";
 
 function App() {
   return (
@@ -14,11 +14,8 @@ function App() {
     >
       <Routes>
         <Route path="/oauth/microsoft" element={<div>Microsoft OAuth</div>} />
-        <Route path="/oauth/google" element={<GoogleSocialLogin />} />
-        <Route
-          path="/oauth/google/callback"
-          element={<GoogleOAuthCallback />}
-        />
+        <Route path="/oauth/google" element={<GoogleSocialConnect />} />
+        <Route path="/oauth/google-login" element={<GoogleSocialLogin />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </GoogleOAuthProvider>
