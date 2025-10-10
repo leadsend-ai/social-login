@@ -54,7 +54,7 @@ export const GoogleSocialLogin = () => {
   );
 
   return (
-    <div>
+    <div className="flex items-center justify-center w-full h-full min-h-[50px]">
       <GoogleLogin
         size="large"
         width="360px"
@@ -63,18 +63,15 @@ export const GoogleSocialLogin = () => {
         logo_alignment="left"
         shape="rectangular"
         onSuccess={async (resp: GoogleOAuthResponse) => {
-          // Send response via BroadcastChannel to stamina
+          // Send response via PostMessage to parent window (localhost:4200)
           sendOAuthResponse(resp);
-
           return;
         }}
         onError={() => {
-          console.log("Something went wrong, try again");
-
-          // Send error via BroadcastChannel
+          // Send error via PostMessage to parent window
           sendOAuthResponse({}, true);
         }}
-        ux_mode="redirect"
+        ux_mode="popup"
       />
     </div>
   );
