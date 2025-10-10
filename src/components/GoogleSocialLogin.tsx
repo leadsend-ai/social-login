@@ -74,7 +74,7 @@ export const GoogleSocialLogin = () => {
           // Send error via BroadcastChannel
           sendOAuthResponse({}, true);
         }}
-        ux_mode="popup"
+        ux_mode="redirect"
       />
     </div>
   );
