@@ -18,6 +18,10 @@ export const GoogleSocialConnect = () => {
         redirectUrlWithToken.searchParams.append("isCrm", isCrm ?? "false");
         // commit
         window.location.href = redirectUrlWithToken.toString();
+      } else if (action === "addCalendar") {
+        redirectUrlWithToken.searchParams.append("credential", response.code);
+        redirectUrlWithToken.searchParams.append("addCalendar", "true");
+        window.location.href = redirectUrlWithToken.toString();
       }
     } else {
       console.log("Encoded JWT ID token:", response.code);
@@ -28,10 +32,23 @@ export const GoogleSocialConnect = () => {
   const getAuthCode = useCallback(() => {
     if (!(window as any)?.google) return;
 
+    let scope = "";
+    const urlParams = new URLSearchParams(window.location.search);
+    const action = urlParams.get("action");
+
+    if (action === "addEmailAccount") {
+      scope = "https://mail.google.com email profile";
+    } else if (action === "addCalendar") {
+      scope =
+        "profile https://www.googleapis.com/auth/calendar.events.readonly";
+    } else {
+      scope = "https://mail.google.com email profile";
+    }
+
     (window as any).google.accounts.oauth2
       .initCodeClient({
         client_id: clientId,
-        scope: "https://mail.google.com email profile",
+        scope: scope,
         ux_mode: "popup",
         access_type: "offline",
         callback: (response: any) => {
