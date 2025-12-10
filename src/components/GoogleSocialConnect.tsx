@@ -40,7 +40,7 @@ export const GoogleSocialConnect = () => {
       scope = "https://mail.google.com email profile";
     } else if (action === "addCalendar") {
       scope =
-        "profile https://www.googleapis.com/auth/calendar.events.readonly";
+        "email profile https://www.googleapis.com/auth/calendar.events.readonly";
     } else {
       scope = "https://mail.google.com email profile";
     }
