@@ -4,29 +4,30 @@ export const GoogleSocialConnect = () => {
   const clientId =
     process.env.REACT_APP_GOOGLE_CLIENT_ID || "your-google-client-id";
 
-  const buildStateObject = useCallback(() => {
+  const handleCredentialResponse = useCallback((response: any) => {
     const urlParams = new URLSearchParams(window.location.search);
     const redirectUrl = urlParams.get("redirect_url");
     const action = urlParams.get("action");
-    const isCrm = urlParams.get("isCrm");
 
-    const state: {
-      redirectUrl: string | null;
-      action: string | null;
-      isCrm?: string | null;
-    } = {
-      redirectUrl,
-      action,
-    };
+    if (redirectUrl) {
+      const redirectUrlWithToken = new URL(redirectUrl);
 
-    // Add additional parameters based on action type
-    if (action === "addEmailAccount" && isCrm) {
-      state.isCrm = isCrm;
+      if (action === "addEmailAccount") {
+        const isCrm = urlParams.get("isCrm");
+        redirectUrlWithToken.searchParams.append("credential", response.code);
+        redirectUrlWithToken.searchParams.append("isCrm", isCrm ?? "false");
+        // commit
+        window.location.href = redirectUrlWithToken.toString();
+      } else if (action === "addCalendar") {
+        redirectUrlWithToken.searchParams.append("credential", response.code);
+        redirectUrlWithToken.searchParams.append("addCalendar", "true");
+        window.location.href = redirectUrlWithToken.toString();
+      }
+    } else {
+      console.log("Encoded JWT ID token:", response.code);
+      // No redirect URL provided, handle token locally
     }
-
-    return state;
   }, []);
-
 
   const getAuthCode = useCallback(() => {
     if (!(window as any)?.google) return;
@@ -44,60 +45,24 @@ export const GoogleSocialConnect = () => {
       scope = "https://mail.google.com email profile";
     }
 
-    const stateObject = buildStateObject();
-
     (window as any).google.accounts.oauth2
       .initCodeClient({
         client_id: clientId,
         scope: scope,
-        ux_mode: "redirect",
-        state: JSON.stringify(stateObject),
+        ux_mode: "popup",
         access_type: "offline",
         callback: (response: any) => {
-          // Note: In redirect mode, this callback may not be called
-          // The response is typically handled via URL parameters after redirect
-          console.log("token", response);
+          // Send this authCode to your backend to exchange for tokens
+          console.log("token", response.code);
+          handleCredentialResponse(response);
+          // handleToken(response.code);
         },
       })
       .requestCode();
-  }, [clientId, buildStateObject]);
+  }, [clientId]);
 
   useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const code = urlParams.get("code");
-    const stateParam = urlParams.get("state");
-
-    // Handle redirect response from Google OAuth
-    if (code && stateParam) {
-      try {
-        const state = JSON.parse(stateParam);
-        const { redirectUrl, action, isCrm } = state;
-
-        if (redirectUrl) {
-          const redirectUrlWithToken = new URL(redirectUrl);
-          redirectUrlWithToken.searchParams.append("credential", code);
-
-          if (action === "addEmailAccount") {
-            redirectUrlWithToken.searchParams.append("isCrm", isCrm ?? "false");
-            window.location.href = redirectUrlWithToken.toString();
-          } else if (action === "addCalendar") {
-            redirectUrlWithToken.searchParams.append("addCalendar", "true");
-            window.location.href = redirectUrlWithToken.toString();
-          } else {
-            // Default case: just redirect with credential
-            window.location.href = redirectUrlWithToken.toString();
-          }
-        } else {
-          console.log("Encoded JWT ID token:", code);
-          // No redirect URL provided, handle token locally
-        }
-      } catch (error) {
-        console.error("Error parsing state:", error);
-      }
-      return;
-    }
-
-    // Load the Google API library only if not handling a redirect response
+    // Load the Google API library
     const loadGsiScript = () => {
       const script = document.createElement("script");
       script.src = "https://accounts.google.com/gsi/client";
@@ -110,12 +75,17 @@ export const GoogleSocialConnect = () => {
     const initializeGoogleClient = () => {
       if (!(window as any).google) return;
 
+      (window as any).google.accounts.id.initialize({
+        client_id: clientId,
+        callback: handleCredentialResponse,
+      });
+
       // Automatically initiate OAuth flow once Google client is initialized
       getAuthCode();
     };
 
     loadGsiScript();
-  }, [clientId, getAuthCode]);
+  }, [clientId, handleCredentialResponse, getAuthCode]);
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100">
