@@ -1,5 +1,12 @@
 import { useCallback, useEffect } from "react";
 
+const GOOGLE_CONNECT_SCOPE = [
+  "https://mail.google.com/",
+  "https://www.googleapis.com/auth/calendar.events.readonly",
+  "email",
+  "profile",
+].join(" ");
+
 export const GoogleSocialConnect = () => {
   const clientId =
     process.env.REACT_APP_GOOGLE_CLIENT_ID || "your-google-client-id";
@@ -27,7 +34,6 @@ export const GoogleSocialConnect = () => {
     return state;
   }, []);
 
-
   const getAuthCode = useCallback(() => {
     if (!(window as any)?.google) return;
 
@@ -35,7 +41,9 @@ export const GoogleSocialConnect = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const action = urlParams.get("action");
 
-    if (action === "addEmailAccount") {
+    if (action === "syncGoogleAccount") {
+      scope = GOOGLE_CONNECT_SCOPE;
+    } else if (action === "addEmailAccount") {
       scope = "https://mail.google.com email profile";
     } else if (action === "addCalendar") {
       scope =
